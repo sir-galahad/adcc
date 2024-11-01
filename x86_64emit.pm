@@ -23,7 +23,15 @@ sub EmitFunction {
 	my $lines = shift @_;
 	push @{$lines}, "\t.globl $func->{name}";
 	push @{$lines}, "$func->{name}:";
+	push @{$lines}, "\tpushq %rbp";
+	push @{$lines}, "\tmovq %rsp, %rbp";
+	my $stack = 0-$func->{minStack};
+	push @{$lines}, "\tsubq \$$stack, %rsp";
 	for my $inst (@{$func->{instructions}}) {
+		if($inst->{name} eq 'ret') {
+			push @{$lines}, "\tmovq %rbp, %rsp";
+			push @{$lines}, "\tpopq %rbp";
+		}
 		my $line = "\t";
 		$line .= $inst->{name}." ";
 		while( @{$inst->{operands}} ) {
@@ -33,15 +41,17 @@ sub EmitFunction {
 		}
 		push @{$lines}, $line;
 	}
+	
 }
 			
 
 
 sub OperandToString {
 	my $op = shift @_;
-	if($op->{type} eq "Imm"){ return '$'.$op->{value}; }
+	if($op->{type} eq "imm"){ return '$'.$op->{value}; }
 	elsif($op->{type} eq "register"){ return '%'.$op->{value}; }
-	die "unknown operand type";
+	elsif($op->{type} eq "stack"){ return $op->{value}; }
+	die "unknown operand type $op->{type}";
 };
 
 1

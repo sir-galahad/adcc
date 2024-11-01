@@ -3,9 +3,10 @@
 
 use strict;
 use warnings;
-use lib '/home/aaron/compiler';
+use lib '/home/aaron/adcc';
 use parser::x86_64aast;
 use parser::cast;
+use parser::totac;
 use lexer;
 use x86_64emit;
 
@@ -22,6 +23,7 @@ close($fh);
 foreach my $flag (@flags) {
 	if( $flag eq "--lex") {$stopAfter = "lex";}
 	elsif( $flag eq "--parse") {$stopAfter = "parse";}
+	elsif( $flag eq "--tacky") {$stopAfter = "tacky";}
 	elsif( $flag eq "--codegen") {$stopAfter = "codegen";}
 }
 
@@ -39,7 +41,13 @@ foreach my $file (@files) {
 		next;
 	}
 
-	my $aast = CastToAast($cast);	
+	my $TAC = CastToTAC($cast);
+	if( $stopAfter eq "tacky") {
+		WriteObject("$file.tac", $TAC);
+		next;
+	}
+
+	my $aast = TACToAast($TAC);	
 
 	if($stopAfter eq "codegen") {
 		WriteObject("$file.aast", $aast);

@@ -1,5 +1,3 @@
-#!/usr/bin/perl
-
 package parser::cast;
 
 use strict;
@@ -8,6 +6,14 @@ use warnings;
 use Exporter 'import';
 
 our @EXPORT = qw( ParseTokens );
+
+my %unaryOperations = ( 
+	'--' => 'decrement',
+	'-'  => 'negate',
+	'~'  => 'bitnot',
+);
+
+my @unaryPrefixOperators = qw( -- - ~ ); 
 
 my @context;
 
@@ -61,8 +67,16 @@ sub ParseStatement {
 sub ParseExpression {
 	my $tokens = shift @_;
 	my $tok = shift @$tokens;
-	ExpectToken($tok,["constant"]);
-	return {value => $tok->{value}};
+	my $result;
+	if($tok->{type} eq "constant" and $tokens->[0]{type} ne "operator") { $result = {type=>"value", value => $tok->{value}} }
+	elsif($tok->{type} eq "(") { $result = ParseExpression($tokens); $tok = shift @$tokens; ExpectToken($tok,[")"]); }
+	#prefix unary operator
+	elsif($tok->{type} eq "operator" and grep($tok->{value}, @unaryPrefixOperators) ) { 
+		die "decrement not yet supported \n" if($tok->{value} eq '--'); 
+		$result = {type=>"unaryOperation", operation => $unaryOperations{$tok->{value}},  subexpression => ParseExpression($tokens)};
+	}
+	else{ die "expected expression $tok->{line}\n" };
+	return $result;
 }
 
 sub ParseFunction {

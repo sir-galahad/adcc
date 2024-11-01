@@ -7,68 +7,114 @@ use Data::Dumper;
 
 use Exporter 'import';
 
-our @EXPORT=qw(CastToAast);
+our @EXPORT=qw(TACToAast);
 #convert C abstract syntax tree to assembly abstract syntax tree
 
-#statement translation tables
-my %TopSTT = ( # top table can really only be functions and declarations
-	function => \&TranslateStatementFunction,
+#translation tables
+my %TopTT = ( # top table can really only be functions and declarations
+	function => \&TranslateFunction,
 );
-my %STT = (
-	return => \&TranslateStatementReturn,
+my %TT = (
+	return => \&TranslateReturn,
+	unaryOperation => \&TranslateUnaryOp,
+	value => \&TranslateValue,
 );
 
-sub CastToAast {
-	my $cast = shift @_;
+sub TACToAast {
+	my $TAC = shift @_;
 	my $aast = {functions=>[]};
-	foreach my $stmnt (@{$cast->{statements}}) {
-		my $unit = $TopSTT{$stmnt->{statement_type}}($stmnt);
-		if($unit->{unit} eq "function") {
-			push @{$aast->{functions}}, $unit;
-		}
+	foreach my $function (@{$TAC->{functions}}) {
+		my $unit = $TopTT{function}($function);
+		push @{$aast->{functions}}, $unit;
 	}
 	return $aast;
 }
 
-sub TranslateStatementFunction {
+sub TranslateFunction {
 	my $cfunction = shift @_;
-	my $function = { unit => "function", name => $cfunction->{name}, instructions => []} ;
-	foreach my $stmnt (@{$cfunction->{statements}}) {	
-		my $instructions = $STT{$stmnt->{statement_type}}($stmnt);
+	my $function = { 
+		unit => "function", 
+		name => $cfunction->{name}, 
+		instructions => [], 
+		pseudotable=>{},
+		minStack=>0,
+	};
+	
+	# 1st pass generate pseudo table"
+	foreach my $instruction (@{$cfunction->{instructions}}) {
+		# if we have a return type instruction
+		if($instruction->{type} eq "return") { 
+			$function->{pseudotable}{$instruction->{src}{value}} = {type => 'register', value=>'eax'};
+			$function->{minStack} += 4;
+		}
+
+		AddPseudoEntry($instruction->{src}{value}, $function) if($instruction->{src}{type} and $instruction->{src}{type} eq "pseudo");
+		AddPseudoEntry($instruction->{dest}{value}, $function) if($instruction->{dest}{type} and $instruction->{dest}{type} eq "pseudo");
+
+	}	
+	
+	foreach my $instruction (@{$cfunction->{instructions}}) {
+		if($instruction->{src}{type} and $instruction->{src}{type} eq "pseudo") {
+			my $newSrc = $function->{pseudotable}{$instruction->{src}{value}};
+			$instruction->{src}=$newSrc;
+		}
+		if($instruction->{dest}{type} and $instruction->{dest}{type} eq "pseudo") {
+			my $newDst = $function->{pseudotable}{$instruction->{dest}{value}};
+			$instruction->{dest}=$newDst;
+		}
+		my $instructions = $TT{$instruction->{type}}($instruction);
 		push @{$function->{instructions}}, @$instructions;
 	}
 	return $function;
 };
 
-sub TranslateStatementReturn {
-	my $retStmnt = shift @_;
-	my $instructions = [];
-	my ($result_location, $expInstructions) = TranslateExpression($retStmnt->{expression});
-	if(scalar @$expInstructions > 0) {
-		push @$instructions, (@$expInstructions);
+sub AddPseudoEntry {
+	my ($varname, $function) = @_;
+	unless (defined $function->{pseudotable}{$varname}) {
+		$function->{minStack} -= 4;
+		$function->{pseudotable}{$varname} = {type => 'stack', value => "$function->{minStack}(%rbp)"};
 	}
-	my $movInstruction = {name => "mov", operands => [
-		{type => $result_location->{type}, value => $result_location->{value}},
-		{type => "register", value=>"eax"},
-	]};
-	my $retInstruction = {name => "ret", operands => []};
-	
-	push @$instructions, $movInstruction;
-	push @$instructions, $retInstruction;
-	
-	return $instructions;
-	
+	return
+}
 		
+
+sub TranslateReturn {
+	my $instruction = shift @_;
+	my $instructions = [];
+	my $retInstruction = {name => "ret", operands => []};
+	push @$instructions, $retInstruction;
+	return $instructions;
 }
 
-sub TranslateExpression {
-	my $exp = shift @_;
-	my $result_location;
-	if(defined $exp->{value}) {
-		$result_location={type=>"Imm", value=>$exp->{value}};
-		return ($result_location, []);
+sub TranslateUnaryOp {
+	my $instruction = shift @_;
+	my $instructions = [];
+	my %ops = (negate => 'negl', bitnot => 'notl' );
+
+	my $operation = {name => $ops{$instruction->{operation}},  operands => [ $instruction->{src} ]};
+	push @$instructions, $operation;
+
+	if($instruction->{dest}{type} eq 'stack') {
+		push @$instructions, {name => 'movl', operands => 
+			[ $instruction->{src}, {type => 'register', value => 'r10d'} ] };
+		push @$instructions, {name => 'movl', operands => 
+			[ {type => 'register', value => 'r10d'}, $instruction->{dest} ] };
 	}
-	return (undef,undef);
+	elsif($instruction->{dest}{type} eq 'register') {
+		push @$instructions, {name => 'movl', operands => 
+			[ $instruction->{src}, {type => 'register', value => 'eax'} ] };
+	}
+	return $instructions;
 }
+
+sub TranslateValue {
+	my $instruction = shift @_;
+	my $instructions = [];
+	push @$instructions, {name => 'movl', operands => 
+		[ $instruction->{src}, $instruction->{dest} ] };
+	
+	return $instructions;
+}
+	
 
 1
