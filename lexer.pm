@@ -39,10 +39,10 @@ sub Tokenize {
 				elsif(m#^(/\*.*?\*/)#)                  { } # do nothing comment
 				elsif(m#^(/\*.*)$#)                     {$inComment = 1} # do nothing comment
 				elsif(/^([;])/)                         { appendToken (\@tokens, $1, $1, $linenum ) }
-				elsif(/^(\d+)([^a-zA-Z_]|$)/)               { appendToken (\@tokens, "constant",$1,$linenum) }
+				elsif(/^(\d+)([^a-zA-Z_]|$)/)           { appendToken (\@tokens, "constant",$1,$linenum) }
 				elsif(/^([()])/)                        { appendToken (\@tokens, $1,$1,$linenum) }
 				elsif(/^([{}])/)                        { appendToken (\@tokens, $1,$1,$linenum) }
-				elsif(/^([+\-\/*])/)                    { appendToken (\@tokens, "operator", $1, $linenum)}
+				elsif(/^([-]{1,2}|~)/)                  { appendToken (\@tokens, "operator", $1, $linenum)	}
 				elsif(/^($startClass$followingClass*)/) { 
 															my $iden = $1;
 															if( grep(/$iden/, @types) ) {
@@ -53,7 +53,7 @@ sub Tokenize {
 																appendToken(\@tokens, "identifier", $1, $linenum)
 															}
 														}
-				else { die "error at line: $_"}
+				else { die "error at line: $linenum"}
 				$match = $1;
 			} else {
 				if(m#^(.*?\*/)#) {$inComment = 0 ; $match = $1}
