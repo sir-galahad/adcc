@@ -11,6 +11,8 @@ my %unaryOperations = (
 	'--' => 'decrement',
 	'-'  => 'negate',
 	'~'  => 'bitnot',
+	'++' => 'increment',
+	'+'  => 'positive'
 );
 
 my @unaryPrefixOperators = qw( -- - ~ ); 
@@ -70,9 +72,13 @@ sub ParseExpression {
 	my $result;
 	if($tok->{type} eq "constant" and $tokens->[0]{type} ne "operator") { $result = {type=>"int", value => $tok->{value}} }
 	elsif($tok->{type} eq "(") { $result = ParseExpression($tokens); $tok = shift @$tokens; ExpectToken($tok,[")"]); }
-	#prefix unary operator
+	# prefix unary operator
+	# + is allowed as a unary operator, but it does nothing
+	elsif($tok->{type} eq "operator" and $tok->{value} eq "+") { $result = ParseExpression($tokens); }
+	# rest of the unary operators
 	elsif($tok->{type} eq "operator" and grep($tok->{value}, @unaryPrefixOperators) ) { 
 		die "decrement not yet supported \n" if($tok->{value} eq '--'); 
+		die "increment not yet supported \n" if($tok->{value} eq '++'); 
 		$result = {type=>"unaryOperation", operation => $unaryOperations{$tok->{value}},  subexpression => ParseExpression($tokens)};
 	}
 	else{ die "expected expression $tok->{line}\n" };
