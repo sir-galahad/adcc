@@ -1,14 +1,15 @@
 #!/usr/bin/perl
 
-
 use strict;
 use warnings;
-use lib '/home/aaron/adcc';
-use parser::x86_64aast;
-use parser::cast;
-use parser::totac;
-use lexer;
-use x86_64emit;
+
+use FindBin;
+use lib "$FindBin::Bin/lib";
+use adcc::parser::x86_64aast;
+use adcc::parser::cast;
+use adcc::parser::totac;
+use adcc::lexer;
+use adcc::x86_64emit;
 
 my @flags = grep(/^--/,@ARGV);
 my @files = grep(!/^--/,@ARGV);
@@ -20,6 +21,9 @@ print $fh "@flags\n";
 print $fh "@files\n";
 close($fh);
 
+# provide flags for unit tests and debugging each flag will end the compilation
+# process at the named stage and output the code representation at that point 
+# in the process
 foreach my $flag (@flags) {
 	if( $flag eq "--lex") {$stopAfter = "lex";}
 	elsif( $flag eq "--parse") {$stopAfter = "parse";}

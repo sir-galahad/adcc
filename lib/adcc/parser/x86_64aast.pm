@@ -1,5 +1,5 @@
 
-package parser::x86_64aast;
+package adcc::parser::x86_64aast;
 
 use strict;
 use warnings;
@@ -17,7 +17,7 @@ my %TopTT = ( # top table can really only be functions and declarations
 my %TT = (
 	return => \&TranslateReturn,
 	unaryOperation => \&TranslateUnaryOp,
-	value => \&TranslateValue,
+	int => \&TranslateInt,
 );
 
 sub TACToAast {
@@ -41,30 +41,48 @@ sub TranslateFunction {
 	};
 	
 	# 1st pass generate pseudo table"
-	foreach my $instruction (@{$cfunction->{instructions}}) {
+	foreach my $operation (@{$cfunction->{operations}}) {
 		# if we have a return type instruction
-		if($instruction->{type} eq "return") { 
-			$function->{pseudotable}{$instruction->{src}{value}} = {type => 'register', value=>'eax'};
+		if($operation->{type} eq "return") { 
+			$function->{pseudotable}{$operation->{src}{value}} = {type => 'register', value=>'eax'};
 			$function->{minStack} += 4;
 		}
 
-		AddPseudoEntry($instruction->{src}{value}, $function) if($instruction->{src}{type} and $instruction->{src}{type} eq "pseudo");
-		AddPseudoEntry($instruction->{dest}{value}, $function) if($instruction->{dest}{type} and $instruction->{dest}{type} eq "pseudo");
+		AddPseudoEntry($operation->{src}{value}, $function) if($operation->{src}{type} and $operation->{src}{type} eq "pseudo");
+		AddPseudoEntry($operation->{dest}{value}, $function) if($operation->{dest}{type} and $operation->{dest}{type} eq "pseudo");
 
 	}	
-	
-	foreach my $instruction (@{$cfunction->{instructions}}) {
-		if($instruction->{src}{type} and $instruction->{src}{type} eq "pseudo") {
-			my $newSrc = $function->{pseudotable}{$instruction->{src}{value}};
-			$instruction->{src}=$newSrc;
+	my @tmpInstructions;
+	foreach my $operation (@{$cfunction->{operations}}) {
+		if($operation->{src}{type} and $operation->{src}{type} eq "pseudo") {
+			my $newSrc = $function->{pseudotable}{$operation->{src}{value}};
+			$operation->{src}=$newSrc;
 		}
-		if($instruction->{dest}{type} and $instruction->{dest}{type} eq "pseudo") {
-			my $newDst = $function->{pseudotable}{$instruction->{dest}{value}};
-			$instruction->{dest}=$newDst;
+		if($operation->{dest}{type} and $operation->{dest}{type} eq "pseudo") {
+			my $newDst = $function->{pseudotable}{$operation->{dest}{value}};
+			$operation->{dest}=$newDst;
 		}
-		my $instructions = $TT{$instruction->{type}}($instruction);
-		push @{$function->{instructions}}, @$instructions;
+		my $instructions = $TT{$operation->{type}}($operation);
+		push @tmpInstructions, @$instructions;
 	}
+
+	#final pass to replace instances of mov <mem>, <mem>
+	foreach my $instruction (@tmpInstructions) {
+		if($instruction->{name} eq 'movl' and 
+			$instruction->{operands}[0]{type} ne 'register' and
+			$instruction->{operands}[1]{type} ne 'register' 
+		) { 
+			push @{$function->{instructions}}, {name => 'movl', operands => 
+				[ $instruction->{operands}[0], {type => 'register', value => 'r10d'} ] };
+			push @{$function->{instructions}}, {name => 'movl', operands => 
+				[ {type => 'register', value => 'r10d'}, $instruction->{operands}[1] ] };
+		} else {
+			push @{$function->{instructions}}, $instruction;
+		}
+	}
+			
+			
+	#push @{$function->{instructions}}, @$instructions;
 	return $function;
 };
 
@@ -94,20 +112,13 @@ sub TranslateUnaryOp {
 	my $operation = {name => $ops{$instruction->{operation}},  operands => [ $instruction->{src} ]};
 	push @$instructions, $operation;
 
-	if($instruction->{dest}{type} eq 'stack') {
-		push @$instructions, {name => 'movl', operands => 
-			[ $instruction->{src}, {type => 'register', value => 'r10d'} ] };
-		push @$instructions, {name => 'movl', operands => 
-			[ {type => 'register', value => 'r10d'}, $instruction->{dest} ] };
-	}
-	elsif($instruction->{dest}{type} eq 'register') {
-		push @$instructions, {name => 'movl', operands => 
-			[ $instruction->{src}, {type => 'register', value => 'eax'} ] };
-	}
+	push @$instructions, {name => 'movl', operands => 
+		[ $instruction->{src}, $instruction->{dest} ] };	
+	
 	return $instructions;
 }
 
-sub TranslateValue {
+sub TranslateInt {
 	my $instruction = shift @_;
 	my $instructions = [];
 	push @$instructions, {name => 'movl', operands => 
