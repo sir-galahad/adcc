@@ -1,4 +1,4 @@
-package parser::cast;
+package adcc::parser::cast;
 
 use strict;
 use warnings;
@@ -68,7 +68,7 @@ sub ParseExpression {
 	my $tokens = shift @_;
 	my $tok = shift @$tokens;
 	my $result;
-	if($tok->{type} eq "constant" and $tokens->[0]{type} ne "operator") { $result = {type=>"value", value => $tok->{value}} }
+	if($tok->{type} eq "constant" and $tokens->[0]{type} ne "operator") { $result = {type=>"int", value => $tok->{value}} }
 	elsif($tok->{type} eq "(") { $result = ParseExpression($tokens); $tok = shift @$tokens; ExpectToken($tok,[")"]); }
 	#prefix unary operator
 	elsif($tok->{type} eq "operator" and grep($tok->{value}, @unaryPrefixOperators) ) { 

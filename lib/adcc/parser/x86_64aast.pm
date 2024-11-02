@@ -1,5 +1,5 @@
 
-package parser::x86_64aast;
+package adcc::parser::x86_64aast;
 
 use strict;
 use warnings;
@@ -17,7 +17,7 @@ my %TopTT = ( # top table can really only be functions and declarations
 my %TT = (
 	return => \&TranslateReturn,
 	unaryOperation => \&TranslateUnaryOp,
-	value => \&TranslateValue,
+	int => \&TranslateInt,
 );
 
 sub TACToAast {
@@ -107,7 +107,7 @@ sub TranslateUnaryOp {
 	return $instructions;
 }
 
-sub TranslateValue {
+sub TranslateInt {
 	my $instruction = shift @_;
 	my $instructions = [];
 	push @$instructions, {name => 'movl', operands => 

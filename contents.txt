@@ -1,0 +1,45 @@
+The following is an explanation of the files I've created to complete the 
+assignments in "Writing a C Compiler." I have chosen to write a compiler for C
+in perl for no particular reason other than perl makes it quick and easy to
+create and manipulate data structures.
+
+- adcc.pl :
+This is the "compiler driver" it exists to call the separate stages of the 
+compiler and to accept flags prescribed by "Writing a C Compiler" as needed
+to run unit tests
+
+- lib/adcc/lexer.pm :
+lexer.pm simply tokenizes a C language file and returns a list of tokens, 
+comments also removed at this stage.
+
+- lib/adcc/parser/cast.pm :
+This parses the list of tokens in to a syntax tree in a hierarchy of
+program > functions > statements > expressions. statements and expressions may
+be recursive for example the statements in an "if" block would be subordinate
+to the "if" statement.
+
+- lib/adcc/parser/totac.pm :
+Breaks the syntax tree returned by cast.pm into operations and each operation
+uses the "Three Address Code" format where each operation may have 2 inputs
+and 1 output. This stage will create "pseudo registers" as needed for output.
+Operations at this stage are roughly equivalent to the original expressions.
+
+- lib/adcc/parser/x86_64aast.pm :
+This turns the list of operations returned from totac.pm into a rough syntax
+tree of the assembly code to be emitted, barring some boilerplate that is 
+filled in at the emition stage this stage also resolves the "pseudo registers"
+in the TAC structure into registers or memory addresses as needed.
+
+- lib/adcc/x86_64emit.pm :
+Finally turns the instruction structures in the assembly syntax tree into
+actual assembly instructions and writes them out into <filename>.s in AT&T
+assembly format
+
+
+- gcc :
+Oddly enough this compiler still requires gcc to create a final executable.
+The "compiling" process ends at emitting assembly code, to create an
+executable the assembly code needs to be assembled into an object file, and
+linked. This is where gcc comes in and completes those steps for us. gcc is
+called automatically by adcc.pl
+

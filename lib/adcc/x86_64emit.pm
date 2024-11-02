@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-package x86_64emit;
+package adcc::x86_64emit;
 use strict;
 use warnings;
 use Exporter 'import';

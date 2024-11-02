@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-package lexer; 
+package adcc::lexer; 
 use strict;
 use warnings;
 use Switch;
@@ -14,11 +14,9 @@ sub appendToken {
 }
 
 sub Tokenize {
-	my $constClass = "[0-9]";
 	my $startChars = "a-zA-Z_";
-	my $followingChars = "${startChars}0-9";
 	my $startClass = "[$startChars]";
-	my $followingClass = "[$followingChars]";
+	my $followingClass = "[${startChars}0-9]";
 	my @tokens=();
 	my @types = qw (int void);
 	my @keywords = qw (return);
