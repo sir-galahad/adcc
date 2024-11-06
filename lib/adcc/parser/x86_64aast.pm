@@ -83,7 +83,6 @@ sub TranslateFunction {
 			$instruction->{operands}[0]{type} eq 'stack' and
 			$instruction->{operands}[1]{type} eq 'stack' 
 		) {
-			print Dumper($instruction); 
 			push @{$function->{instructions}}, {name => 'movl', operands => 
 				[ $instruction->{operands}[0], {type => 'register', value => 'r10d'} ] };
 			push @{$function->{instructions}}, {name => 'movl', operands => 
