@@ -15,7 +15,23 @@ my %unaryOperations = (
 	'+'  => 'positive'
 );
 
-my @unaryPrefixOperators = qw( -- - ~ ); 
+my %binaryOperations = (
+	'+' => 'add',
+	'-' => 'subtract',
+	'*' => 'multiply',
+	'/' => 'divide',
+	'%' => 'modulo',
+);
+
+my %operatorPrecedence = (
+	'+' => 10,
+	'-' => 10,
+	'*' => 20,
+	'/' => 20,
+	'%' => 20,
+);
+my @unaryPrefixOperators = keys %unaryOperations; 
+my @binaryOperators = keys %binaryOperations; 
 
 my @context;
 
@@ -55,7 +71,7 @@ sub ParseTokens {
 
 sub ParseStatement {
 	my $tokens = shift @_;
-	my @tmptokens = map {$_->{type}} @$tokens; # 10 is kind of arbitrary, that should be enough 
+	my @tmptokens = map {$_->{type}} @$tokens;
 	if(CompareArray( [('type', 'identifier', '(') ], [@tmptokens[0..2]])) {
 		return ParseFunction($tokens);
 	} elsif ( $tmptokens[0] eq 'return' ) {
@@ -67,21 +83,33 @@ sub ParseStatement {
 }
 
 sub ParseExpression {
+	my ($tokens, $minPrecedence) = @_;
+	my $left = ParseFactor($tokens);
+	while( grep($tokens->[0]{value} eq $_, @binaryOperators), and $operatorPrecedence{$tokens->[0]{value}} > $minPrecedence ) {
+		my $operator = shift @$tokens;
+		my $right = ParseExpression($tokens,$operatorPrecedence{$operator->{value}}+1);
+			
+		$left = {type=>"binaryOperation", operation => $binaryOperations{$operator->{value}},  subexpression => [$left, $right]};
+	}
+	return $left;
+}
+
+sub ParseFactor {
 	my $tokens = shift @_;
 	my $tok = shift @$tokens;
 	my $result;
-	if($tok->{type} eq "constant" and $tokens->[0]{type} ne "operator") { $result = {type=>"int", value => $tok->{value}} }
-	elsif($tok->{type} eq "(") { $result = ParseExpression($tokens); $tok = shift @$tokens; ExpectToken($tok,[")"]); }
+	if($tok->{type} eq "constant") { $result = {type=>"int", value => $tok->{value}} }
+	elsif($tok->{type} eq "(") { $result = ParseExpression($tokens,0); $tok = shift @$tokens; ExpectToken($tok,[")"]); }
 	# prefix unary operator
 	# + is allowed as a unary operator, but it does nothing
-	elsif($tok->{type} eq "operator" and $tok->{value} eq "+") { $result = ParseExpression($tokens); }
+	elsif($tok->{type} eq "operator" and $tok->{value} eq "+") { $result = ParseExpression($tokens,0); }
 	# rest of the unary operators
-	elsif($tok->{type} eq "operator" and grep($tok->{value}, @unaryPrefixOperators) ) { 
+	elsif($tok->{type} eq "operator" and grep($tok->{value} eq $_ , @unaryPrefixOperators) ) { 
 		die "decrement not yet supported \n" if($tok->{value} eq '--'); 
 		die "increment not yet supported \n" if($tok->{value} eq '++'); 
-		$result = {type=>"unaryOperation", operation => $unaryOperations{$tok->{value}},  subexpression => ParseExpression($tokens)};
+		$result = {type=>"unaryOperation", operation => $unaryOperations{$tok->{value}},  subexpression => [ParseFactor($tokens)] };
 	}
-	else{ die "expected expression $tok->{line}\n" };
+	else{ die "got $tok->{value} $tok->{type} where expression expected line:$tok->{line}\n" };
 	return $result;
 }
 
@@ -126,7 +154,7 @@ sub ParseReturnStatement {
 	my $tokens = shift @_;
 	my $tok = shift @$tokens;
 	die "compiler error parsing return in correctly" unless($tok->{value} eq "return");
-	my $expression = ParseExpression($tokens);	
+	my $expression = ParseExpression($tokens, 0);	
 	$tok = shift @$tokens;
 	ExpectToken($tok, [";"]);
 	return {statement_type => "return", expression => $expression};
