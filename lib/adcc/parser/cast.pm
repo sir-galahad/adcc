@@ -20,15 +20,25 @@ my %binaryOperations = (
 	'-' => 'subtract',
 	'*' => 'multiply',
 	'/' => 'divide',
-	'%' => 'modulo',
+	'^' => 'bitwise_xor',
+	'&' => 'bitwise_and',
+	'|' => 'bitwise_or',
+	'<<' => 'shift_left',
+	'>>' => 'shift_right',
 );
 
 my %operatorPrecedence = (
-	'+' => 10,
-	'-' => 10,
-	'*' => 20,
-	'/' => 20,
-	'%' => 20,
+
+	'|' =>   20,
+	'^' =>   30,
+	'&' =>   40,
+	'<<' =>  70,
+	'>>' =>  70,
+	'+' =>   80,
+	'-' =>   80,
+	'*' =>   90,
+	'/' =>   90,
+	'%' =>   90,
 );
 my @unaryPrefixOperators = keys %unaryOperations; 
 my @binaryOperators = keys %binaryOperations; 
