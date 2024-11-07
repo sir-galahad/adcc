@@ -40,7 +40,7 @@ sub Tokenize {
 				elsif(/^(\d+)([^a-zA-Z_]|$)/)           { appendToken (\@tokens, "constant",$1,$linenum) }
 				elsif(/^([()])/)                        { appendToken (\@tokens, $1,$1,$linenum) }
 				elsif(/^([{}])/)                        { appendToken (\@tokens, $1,$1,$linenum) }
-				elsif(m#^(\-{1,2}|~|\+{1,2}|\*|%|/)#)   { appendToken (\@tokens, "operator", $1, $linenum) }
+				elsif(m#^(\-{1,2}|~|\+{1,2}|\*|%|/|\||&|>>|<<|\^)#)   { appendToken (\@tokens, "operator", $1, $linenum) }
 				elsif(/^($startClass$followingClass*)/) { 
 															my $iden = $1;
 															if( grep(/$iden/, @types) ) {

@@ -81,7 +81,7 @@ sub ExpressionToTAC {
 		return $operationChainLeft;
 	}
 	elsif($exp->{type} eq "int") {
-		return [{type => "int", src => {type => 'imm', value => $exp->{value}}, dest => {type=>'pseudo', value => GetNextVarname($TACFunction)} }];
+		return [{type => "int", src => {type => 'imm', value => $exp->{value}}, dest => {type=>'imm', value => $exp->{value}} }];
 	}
 	else { die "unknown expression type $exp->{type}\n"}
 }

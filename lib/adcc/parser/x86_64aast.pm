@@ -87,7 +87,11 @@ sub TranslateFunction {
 				[ $instruction->{operands}[0], {type => 'register', value => 'r10d'} ] };
 			push @{$function->{instructions}}, {name => 'movl', operands => 
 				[ {type => 'register', value => 'r10d'}, $instruction->{operands}[1] ] };
-		} else {
+		}
+		elsif($instruction->{name} eq 'movl' and $instruction->{operands}[0]{value} eq $instruction->{operands}[1]{value}) {
+			next;
+		}
+		else {
 			push @{$function->{instructions}}, $instruction;
 		}
 	}
@@ -120,11 +124,12 @@ sub TranslateUnaryOp {
 	my $instructions = [];
 	my %ops = (negate => 'negl', bitnot => 'notl' );
 
-	my $instruction = {name => $ops{$operation->{operation}},  operands => [ $operation->{src} ]};
-	push @$instructions, $instruction;
-
 	push @$instructions, {name => 'movl', operands => 
 		[ $operation->{src}, $operation->{dest} ] };	
+	
+	my $instruction = {name => $ops{$operation->{operation}},  operands => [ $operation->{dest} ]};
+	push @$instructions, $instruction;
+
 	
 	return $instructions;
 }
@@ -132,41 +137,65 @@ sub TranslateUnaryOp {
 sub TranslateBinaryOp {
 	my $operation = shift @_;
 	my $instructions = [];
-	my %ops = (add => 'addl', subtract => 'subl', divide => 'idivl', multiply => 'imull', modulo => 'idivl' );
-	push @$instructions, {name => 'movl', operands => 
-		[$operation->{left}, {type => 'register', value => 'eax'}] };
+	my %ops = (
+		add         => 'addl', 
+		subtract    => 'subl', 
+		divide      => 'idivl', 
+		multiply    => 'imull', 
+		bitwise_or  => 'orl', 
+		bitwise_and => 'andl', 
+		bitwise_xor => 'xorl',
+		shift_left  => 'shll',
+		shift_right => 'shrl',
+
+	);
 	
 	my $isDiv = 0;
 	if( grep( $operation->{operation} eq $_, (qw(divide modulo)) ) ) {
 		$isDiv = 1;
+		push @$instructions, {name => 'movl', operands => 
+			[$operation->{left}, {type => 'register', value => 'eax'}] };
 		push @$instructions, {name => 'cdq', operands => [] }; 
+	}
+	else {
+		push @$instructions, {name => 'movl', operands => 
+			[$operation->{left}, {type => 'register', value => 'r11d'}] };
 	}
 	
 	if($isDiv) {
+		if($operation->{right}{type} eq 'imm') {
+			push @$instructions, {name => 'movl', operands =>
+				[ $operation->{right}, {type=>'register', value=>'r10d'} ] };	
+			$operation->{right}={type=>'register', value=>'r10d'};
+		}	
 		push @$instructions, {name => $ops{$operation->{operation}}, operands =>
 			[$operation->{right}] };
 	} else {
 		push @$instructions, {name => $ops{$operation->{operation}}, operands =>
-			[$operation->{right}, {type=>'register', value=>'eax'}] };
+			[$operation->{right}, {type=>'register', value=>'r11d'}] };
 	}
 
 	if($operation->{operation} eq 'modulo') {
 		push @$instructions, {name => 'movl', operands => 
 			[ {type=>'register', value=>'edx'}, $operation->{dest}  ] };	
-	} else {
+	} 
+	elsif($operation->{operation} eq 'divide') {
 		push @$instructions, {name => 'movl', operands => 
 			[ {type=>'register', value=>'eax'}, $operation->{dest} ] };	
 	}	
-		
+	else{ 
+		push @$instructions, {name => 'movl', operands => 
+			[ {type=>'register', value=>'r11d'}, $operation->{dest} ] };	
+	}
 	return $instructions;
 }
 
 sub TranslateInt {
 	my $instruction = shift @_;
 	my $instructions = [];
-	push @$instructions, {name => 'movl', operands => 
-		[ $instruction->{src}, $instruction->{dest} ] };
-	
+	#push @$instructions, {name => 'movl', operands => 
+	#	[ $instruction->{src}, $instruction->{dest} ] };
+	# do nothing
 	return $instructions;
 }
 	
