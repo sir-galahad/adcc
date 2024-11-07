@@ -44,7 +44,7 @@ sub TranslateFunction {
 	# 1st pass generate pseudo table"
 	foreach my $operation (@{$cfunction->{operations}}) {
 		# if we have a return type instruction
-		if($operation->{type} eq "return") { 
+		if($operation->{type} eq "return") {
 			$function->{pseudotable}{$operation->{src}{value}} = {type => 'register', value=>'eax'};
 			$function->{minStack} += 4;
 		}
@@ -112,8 +112,11 @@ sub AddPseudoEntry {
 		
 
 sub TranslateReturn {
-	my $instruction = shift @_;
+	my $operation = shift @_;
 	my $instructions = [];
+	if($operation->{src}{type} eq 'imm') {
+		push @$instructions, {name => 'movl', operands => [ $operation->{src}, {type=>'register', value=>'eax'}]};
+	}
 	my $retInstruction = {name => "ret", operands => []};
 	push @$instructions, $retInstruction;
 	return $instructions;
@@ -141,6 +144,7 @@ sub TranslateBinaryOp {
 		add         => 'addl', 
 		subtract    => 'subl', 
 		divide      => 'idivl', 
+		modulo      => 'idivl', 
 		multiply    => 'imull', 
 		bitwise_or  => 'orl', 
 		bitwise_and => 'andl', 

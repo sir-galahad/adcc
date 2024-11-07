@@ -20,6 +20,7 @@ my %binaryOperations = (
 	'-' => 'subtract',
 	'*' => 'multiply',
 	'/' => 'divide',
+	'%' => 'modulo',
 	'^' => 'bitwise_xor',
 	'&' => 'bitwise_and',
 	'|' => 'bitwise_or',
