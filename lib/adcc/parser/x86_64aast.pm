@@ -149,8 +149,8 @@ sub TranslateBinaryOp {
 		bitwise_or  => 'orl', 
 		bitwise_and => 'andl', 
 		bitwise_xor => 'xorl',
-		shift_left  => 'shll',
-		shift_right => 'shrl',
+		shift_left  => 'sall',
+		shift_right => 'sarl',
 
 	);
 	
@@ -174,7 +174,17 @@ sub TranslateBinaryOp {
 		}	
 		push @$instructions, {name => $ops{$operation->{operation}}, operands =>
 			[$operation->{right}] };
-	} else {
+	}
+	elsif($operation->{operation} eq "shift_left" or $operation->{operation} eq "shift_right") {
+		push @$instructions, {name => 'movl', operands =>
+			[ $operation->{right}, {type=>'register', value=>'ecx'} ] };
+		
+		push @$instructions, {name => $ops{$operation->{operation}}, operands =>
+			[ {type=>'register', value=>'cl'},{type=>'register', value=>'r11d'} ] };
+		
+		
+	} 
+	else {
 		push @$instructions, {name => $ops{$operation->{operation}}, operands =>
 			[$operation->{right}, {type=>'register', value=>'r11d'}] };
 	}
@@ -186,7 +196,7 @@ sub TranslateBinaryOp {
 	elsif($operation->{operation} eq 'divide') {
 		push @$instructions, {name => 'movl', operands => 
 			[ {type=>'register', value=>'eax'}, $operation->{dest} ] };	
-	}	
+	}
 	else{ 
 		push @$instructions, {name => 'movl', operands => 
 			[ {type=>'register', value=>'r11d'}, $operation->{dest} ] };	

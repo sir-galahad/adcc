@@ -25,14 +25,23 @@ close($fh);
 # process at the named stage and output the code representation at that point 
 # in the process
 foreach my $flag (@flags) {
-	if( $flag eq "--lex") {$stopAfter = "lex";}
+	if( $flag eq "--cpp") {$stopAfter = "cpp";}
+	elsif( $flag eq "--lex") {$stopAfter = "lex";}
 	elsif( $flag eq "--parse") {$stopAfter = "parse";}
 	elsif( $flag eq "--tacky") {$stopAfter = "tacky";}
 	elsif( $flag eq "--codegen") {$stopAfter = "codegen";}
 }
 
 foreach my $file (@files) {
-	my $tokens = Tokenize($file);
+
+	my $outfile=$file ; 
+	$outfile =~ s/[.]c$/.i/;
+	`gcc -E -P $file -o $outfile`;
+	if( $stopAfter eq "cpp") {
+		next;
+	}
+
+	my $tokens = Tokenize($outfile);
 	if( $stopAfter eq "lex") {
 		WriteObject("$file.tok", $tokens);
 		next;
@@ -60,7 +69,7 @@ foreach my $file (@files) {
 	
 	my $lines = EmitObject($aast);
 	
-	my $outfile = $file;
+	$outfile = $file;
 
 	$outfile =~ s/[.]c$/.s/;
 	open(my $f, ">",$outfile) or die "could not open $outfile for writing";
